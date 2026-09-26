@@ -1,0 +1,29 @@
+{
+  "format": "blockdesigner-terragen",
+  "formatVersion": 1,
+  "name": "Rolling hills",
+  "description": "Flat land with gentle noise hills. The simplest place to start.",
+  "world": {"minY": -64, "height": 384, "seaLevel": 63, "defaultBlock": "minecraft:stone", "defaultFluid": "minecraft:water", "cell": [4, 8]},
+  "graph": {
+    "nodes": {
+      "hills": {"type": "noise.perlin", "params": {"frequency": 0.0104, "fractal": "fbm", "octaves": 4, "amplitude": 8, "offset": 68}}
+    },
+    "outputs": {"height": "hills"}
+  },
+  "surface": [
+    {"if": {"type": "above_water", "offset": 1}, "then": [
+      {"if": {"type": "depth", "max": 0}, "block": "minecraft:grass_block"},
+      {"if": {"type": "depth", "max": 3}, "block": "minecraft:dirt"}]},
+    {"if": {"type": "depth", "max": 3}, "block": "minecraft:sand"},
+    {"if": {"type": "y_below", "max": 0}, "block": "minecraft:deepslate"}
+  ],
+  "scatter": [
+    {"name": "Trees", "object": {"type": "tree", "log": "minecraft:oak_log", "leaves": "minecraft:oak_leaves", "height": [4, 6]},
+     "spacing": 9, "chance": 0.35, "on": ["minecraft:grass_block"], "salt": "trees"}
+  ],
+  "controls": [
+    {"label": "Hill height", "node": "hills", "param": "amplitude", "min": 0, "max": 40},
+    {"label": "Hill size", "node": "hills", "param": "frequency", "min": 0.002, "max": 0.05, "log": true, "invert": true},
+    {"label": "Ground level", "node": "hills", "param": "offset", "min": 40, "max": 140}
+  ]
+}

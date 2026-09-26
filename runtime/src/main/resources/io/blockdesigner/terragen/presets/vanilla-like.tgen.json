@@ -1,0 +1,62 @@
+{
+  "format": "blockdesigner-terragen",
+  "formatVersion": 1,
+  "name": "Vanilla-like",
+  "description": "Minecraft-style land from its own noises: continents and oceans, eroded plains, ridged mountains with snowy peaks, overhangs, beaches and trees. It looks like Minecraft but is not a copy of a real seed.",
+  "world": {"minY": -64, "height": 384, "seaLevel": 63, "defaultBlock": "minecraft:stone", "defaultFluid": "minecraft:water", "cell": [4, 8]},
+  "graph": {
+    "nodes": {
+      "continents": {"type": "noise.simplex", "params": {"frequency": 0.00067, "fractal": "fbm", "octaves": 5}},
+      "continentsWarped": {"type": "warp.domain", "params": {"amplitude": 80, "frequency": 0.002, "octaves": 3}, "inputs": {"in": "continents"}},
+      "baseHeight": {"type": "curve.spline", "params": {"points": [[-1, 28], [-0.35, 42], [-0.12, 56], [-0.04, 62], [0.02, 65], [0.2, 72], [0.5, 84], [1, 100]]},
+                     "inputs": {"in": "continentsWarped"}},
+      "land": {"type": "math.remap", "params": {"fromMin": -0.02, "fromMax": 0.25, "toMin": 0, "toMax": 1}, "inputs": {"in": "continentsWarped"}},
+      "landMask": {"type": "math.clamp", "params": {"min": 0, "max": 1}, "inputs": {"in": "land"}},
+      "erosion": {"type": "noise.simplex", "params": {"frequency": 0.0014, "fractal": "fbm", "octaves": 3}},
+      "rugged": {"type": "math.remap", "params": {"fromMin": 0.35, "fromMax": -0.25, "toMin": 0, "toMax": 1}, "inputs": {"in": "erosion"}},
+      "ruggedMask": {"type": "math.clamp", "params": {"min": 0, "max": 1}, "inputs": {"in": "rugged"}},
+      "ridges": {"type": "noise.perlin", "params": {"frequency": 0.0034, "fractal": "ridged", "octaves": 5, "gain": 0.5}},
+      "ridges01": {"type": "math.remap", "params": {"fromMin": -1, "fromMax": 1, "toMin": 0, "toMax": 1}, "inputs": {"in": "ridges"}},
+      "mountainShape": {"type": "curve.spline", "params": {"points": [[0, 0], [0.4, 0.08], [0.7, 0.45], [1, 1]]}, "inputs": {"in": "ridges01"}},
+      "mountainMask": {"type": "math.mul", "inputs": {"a": "landMask", "b": "ruggedMask"}},
+      "mountains01": {"type": "math.mul", "inputs": {"a": "mountainShape", "b": "mountainMask"}},
+      "mountains": {"type": "math.scale", "params": {"factor": 130}, "inputs": {"in": "mountains01"}},
+      "detail": {"type": "noise.perlin", "params": {"frequency": 0.016, "fractal": "fbm", "octaves": 3, "amplitude": 4}},
+      "hills": {"type": "math.add", "inputs": {"a": "mountains", "b": "detail"}},
+      "height": {"type": "math.add", "inputs": {"a": "baseHeight", "b": "hills"}},
+      "solid": {"type": "shape.height_to_density", "params": {"falloff": 0.06}, "inputs": {"height": "height"}},
+      "overhangNoise": {"type": "noise.simplex", "params": {"frequency": 0.02, "scaleY": 1.6, "dims": "3d", "fractal": "fbm", "octaves": 2, "amplitude": 0.45}},
+      "overhangs": {"type": "math.mul", "inputs": {"a": "overhangNoise", "b": "mountainMask"}},
+      "density": {"type": "math.add", "inputs": {"a": "solid", "b": "overhangs"}}
+    },
+    "outputs": {"height": "height", "density": "density"}
+  },
+  "surface": [
+    {"if": {"type": "above_water", "offset": 1}, "then": [
+      {"if": {"type": "all", "of": [{"type": "depth", "max": 1}, {"type": "y_above", "min": 170}]}, "block": "minecraft:snow_block"},
+      {"if": {"type": "steep", "min": 4}, "then": [{"if": {"type": "depth", "max": 3}, "block": "minecraft:stone"}]},
+      {"if": {"type": "y_above", "min": 150}, "then": [{"if": {"type": "depth", "max": 2}, "block": "minecraft:stone"}]},
+      {"if": {"type": "depth", "max": 0}, "block": "minecraft:grass_block"},
+      {"if": {"type": "depth", "max": 3}, "block": "minecraft:dirt"}]},
+    {"if": {"type": "all", "of": [{"type": "depth", "max": 2}, {"type": "y_below", "max": 56}]}, "then": [
+      {"if": {"type": "noise", "threshold": 0.1, "frequency": 0.03, "salt": "seabed"}, "block": "minecraft:gravel"},
+      {"block": "minecraft:sand"}]},
+    {"if": {"type": "depth", "max": 3}, "block": "minecraft:sand"},
+    {"if": {"type": "y_below", "max": 0}, "block": "minecraft:deepslate"}
+  ],
+  "scatter": [
+    {"name": "Trees", "object": {"type": "tree", "log": "minecraft:oak_log", "leaves": "minecraft:oak_leaves", "height": [4, 6]},
+     "spacing": 8, "chance": 0.45, "on": ["minecraft:grass_block"], "salt": "trees"},
+    {"name": "Birches", "object": {"type": "tree", "log": "minecraft:birch_log", "leaves": "minecraft:birch_leaves", "height": [5, 7]},
+     "spacing": 13, "chance": 0.3, "on": ["minecraft:grass_block"], "salt": "birches"},
+    {"name": "Boulders", "object": {"type": "boulder", "block": "minecraft:mossy_cobblestone", "radius": [1, 2]},
+     "spacing": 31, "chance": 0.25, "on": ["minecraft:grass_block"], "salt": "boulders"}
+  ],
+  "controls": [
+    {"label": "Continent size", "node": "continents", "param": "frequency", "min": 0.0002, "max": 0.004, "log": true, "invert": true},
+    {"label": "Mountain height", "node": "mountains", "param": "factor", "min": 0, "max": 220},
+    {"label": "Mountain spacing", "node": "ridges", "param": "frequency", "min": 0.001, "max": 0.01, "log": true, "invert": true},
+    {"label": "Roughness", "node": "detail", "param": "amplitude", "min": 0, "max": 16},
+    {"label": "Overhangs", "node": "overhangNoise", "param": "amplitude", "min": 0, "max": 1.5}
+  ]
+}

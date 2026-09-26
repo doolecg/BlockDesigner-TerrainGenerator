@@ -1,0 +1,40 @@
+{
+  "format": "blockdesigner-terragen",
+  "formatVersion": 1,
+  "name": "Mesas",
+  "description": "Stepped badlands plateaus with banded terracotta cliffs over red sand.",
+  "world": {"minY": -64, "height": 384, "seaLevel": 63, "defaultBlock": "minecraft:stone", "defaultFluid": "minecraft:water", "cell": [4, 8]},
+  "graph": {
+    "nodes": {
+      "base": {"type": "noise.perlin", "params": {"frequency": 0.005, "fractal": "fbm", "octaves": 4}},
+      "shape": {"type": "curve.spline", "params": {"points": [[-1, 64], [-0.1, 68], [0.15, 86], [0.5, 104], [1, 124]]}, "inputs": {"in": "base"}},
+      "height": {"type": "shape.terraces", "params": {"step": 7, "smoothness": 0.15}, "inputs": {"in": "shape"}}
+    },
+    "outputs": {"height": "height"}
+  },
+  "surface": [
+    {"if": {"type": "above_water", "offset": 1}, "then": [
+      {"if": {"type": "all", "of": [{"type": "depth", "max": 0}, {"type": "y_below", "max": 72}]}, "block": "minecraft:red_sand"},
+      {"if": {"type": "all", "of": [{"type": "depth", "max": 2}, {"type": "y_below", "max": 72}]}, "block": "minecraft:red_sandstone"},
+      {"if": {"type": "depth", "max": 14}, "then": [
+        {"if": {"type": "y_between", "min": 73, "max": 75}, "block": "minecraft:orange_terracotta"},
+        {"if": {"type": "y_between", "min": 76, "max": 77}, "block": "minecraft:terracotta"},
+        {"if": {"type": "y_between", "min": 78, "max": 80}, "block": "minecraft:yellow_terracotta"},
+        {"if": {"type": "y_between", "min": 81, "max": 81}, "block": "minecraft:white_terracotta"},
+        {"if": {"type": "y_between", "min": 82, "max": 85}, "block": "minecraft:red_terracotta"},
+        {"if": {"type": "y_between", "min": 86, "max": 87}, "block": "minecraft:brown_terracotta"},
+        {"if": {"type": "y_between", "min": 88, "max": 92}, "block": "minecraft:orange_terracotta"},
+        {"if": {"type": "y_between", "min": 93, "max": 94}, "block": "minecraft:light_gray_terracotta"},
+        {"if": {"type": "y_between", "min": 95, "max": 99}, "block": "minecraft:terracotta"},
+        {"if": {"type": "y_between", "min": 100, "max": 102}, "block": "minecraft:yellow_terracotta"},
+        {"if": {"type": "y_between", "min": 103, "max": 107}, "block": "minecraft:red_terracotta"},
+        {"if": {"type": "y_above", "min": 108}, "block": "minecraft:white_terracotta"}]}]},
+    {"if": {"type": "depth", "max": 3}, "block": "minecraft:red_sand"},
+    {"if": {"type": "y_below", "max": 0}, "block": "minecraft:deepslate"}
+  ],
+  "controls": [
+    {"label": "Step height", "node": "height", "param": "step", "min": 2, "max": 20},
+    {"label": "Step softness", "node": "height", "param": "smoothness", "min": 0, "max": 1},
+    {"label": "Plateau size", "node": "base", "param": "frequency", "min": 0.001, "max": 0.02, "log": true, "invert": true}
+  ]
+}

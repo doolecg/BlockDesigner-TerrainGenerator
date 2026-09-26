@@ -1,0 +1,36 @@
+{
+  "format": "blockdesigner-terragen",
+  "formatVersion": 1,
+  "name": "Islands",
+  "description": "Wavy islands in a wide sea, with beaches, rocky cliffs, trees and boulders.",
+  "world": {"minY": -64, "height": 384, "seaLevel": 63, "defaultBlock": "minecraft:stone", "defaultFluid": "minecraft:water", "cell": [4, 8]},
+  "graph": {
+    "nodes": {
+      "land": {"type": "noise.simplex", "params": {"frequency": 0.0031, "fractal": "fbm", "octaves": 5, "gain": 0.5}},
+      "coast": {"type": "warp.domain", "params": {"amplitude": 48, "frequency": 0.005, "octaves": 3}, "inputs": {"in": "land"}},
+      "height": {"type": "curve.spline", "params": {"points": [[-1, 24], [0.05, 44], [0.2, 60], [0.28, 65], [0.55, 88], [1, 128]]},
+                 "inputs": {"in": "coast"}}
+    },
+    "outputs": {"height": "height"}
+  },
+  "surface": [
+    {"if": {"type": "above_water", "offset": 1}, "then": [
+      {"if": {"type": "steep", "min": 4}, "then": [{"if": {"type": "depth", "max": 2}, "block": "minecraft:stone"}]},
+      {"if": {"type": "depth", "max": 0}, "block": "minecraft:grass_block"},
+      {"if": {"type": "depth", "max": 3}, "block": "minecraft:dirt"}]},
+    {"if": {"type": "all", "of": [{"type": "depth", "max": 2}, {"type": "noise", "threshold": 0.25, "frequency": 0.04, "salt": "gravel"}]},
+     "block": "minecraft:gravel"},
+    {"if": {"type": "depth", "max": 3}, "block": "minecraft:sand"},
+    {"if": {"type": "y_below", "max": 0}, "block": "minecraft:deepslate"}
+  ],
+  "scatter": [
+    {"name": "Trees", "object": {"type": "tree", "log": "minecraft:oak_log", "leaves": "minecraft:oak_leaves", "height": [4, 7]},
+     "spacing": 6, "chance": 0.5, "on": ["minecraft:grass_block"], "salt": "trees"},
+    {"name": "Boulders", "object": {"type": "boulder", "block": "minecraft:mossy_cobblestone", "radius": [1, 2]},
+     "spacing": 24, "chance": 0.3, "on": ["minecraft:grass_block", "minecraft:stone"], "salt": "boulders"}
+  ],
+  "controls": [
+    {"label": "Island size", "node": "land", "param": "frequency", "min": 0.0008, "max": 0.012, "log": true, "invert": true},
+    {"label": "Coast wiggle", "node": "coast", "param": "amplitude", "min": 0, "max": 120}
+  ]
+}

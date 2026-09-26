@@ -1,3 +1,15 @@
+# Terrain Generator 0.1.1
+
+Kept up to date with BlockDesigner 0.4.18: built and tested against its plugin API. Nothing changes in how it works.
+
+**Needs BlockDesigner 0.4.17 or later** (plugin API 3). BlockDesigner 0.4.16 and later update to it by themselves.
+
+## Changed
+- Built against the BlockDesigner 0.4.18 plugin API.
+- README in the same format as BlockDesigner's.
+
+---
+
 # Terrain Generator 0.1.0
 
 The first version: generate Minecraft-style terrain, see it as a map, and bake a region into a layer.

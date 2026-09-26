@@ -25,7 +25,8 @@ class PluginPartsTest {
         Generator g = Generator.compile(Presets.get("islands").spec(), 8);
         // Straddles chunk borders on purpose.
         Baker.Region r = new Baker.Region(-10, 5, 40, 20, 30, true);
-        List<Double> steps = new ArrayList<>();
+        // Progress comes from the pool's threads while chunks fill.
+        List<Double> steps = java.util.Collections.synchronizedList(new ArrayList<>());
         Structure s = baker.bake(g, r, steps::add, () -> false);
         Box b = s.bounds().orElseThrow();
         assertThat(b.minX()).isEqualTo(-10);

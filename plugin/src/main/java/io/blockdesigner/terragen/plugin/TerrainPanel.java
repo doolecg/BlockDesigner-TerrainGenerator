@@ -4,10 +4,20 @@ import io.blockdesigner.core.model.Box;
 import io.blockdesigner.plugin.PanelContext;
 import io.blockdesigner.plugin.PluginContext;
 import io.blockdesigner.plugin.PluginPanel;
+import io.blockdesigner.plugin.ui.ActionBar;
+import io.blockdesigner.plugin.ui.Banner;
+import io.blockdesigner.plugin.ui.Controls;
+import io.blockdesigner.plugin.ui.Form;
+import io.blockdesigner.plugin.ui.Icon;
+import io.blockdesigner.plugin.ui.PanelScaffold;
+import io.blockdesigner.plugin.ui.Section;
+import io.blockdesigner.plugin.ui.Segmented;
+import io.blockdesigner.plugin.ui.Theme;
+import io.blockdesigner.plugin.ui.Tone;
 import io.blockdesigner.terragen.GeneratorSpec;
 import io.blockdesigner.terragen.Presets;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -16,7 +26,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
@@ -24,11 +33,9 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
@@ -38,19 +45,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
 /**
- * The Terrain panel: pick a generator and a seed, tune its sliders while a map of it redraws (here and on the ground in
- * the 3D view), set the region and bake it into a new layer. It shows and edits the {@link TerrainSession}'s state, so
- * everything here is saved in the project and undoable.
+ * The Terrain page: pick a generator and a seed, see its map (here and on the ground in the 3D view), tune its sliders,
+ * set the region and bake it into a new layer; at the bottom, how the bake goes. It shows and edits the
+ * {@link TerrainSession}'s state, so everything here is saved in the project and undoable.
  */
 final class TerrainPanel implements PluginPanel {
     private static final int MAP = TerrainSession.MAP;
+    private static final double MAP_MAX = 360;
     private static final List<Integer> ZOOMS = List.of(1, 2, 4, 8, 16, 32);
-    private static final Color MUTED = Color.web("#9aa0a6"), ERROR = Color.web("#e06c6c");
 
     private final TerrainSession session;
     private final Runnable listener = this::refresh;
@@ -61,26 +67,27 @@ final class TerrainPanel implements PluginPanel {
     private int[] shownPixels;
 
     private final ComboBox<Presets.Preset> presets = new ComboBox<>();
-    private final Label description = new Label();
+    private Form.Row presetRow;
     private final TextField seed = new TextField();
-    private final VBox controls = new VBox(6);
+    private final javafx.scene.layout.VBox shape = new javafx.scene.layout.VBox();
+    private Label noSliders;
     private final ImageView map = new ImageView();
     private final Canvas overlay = new Canvas(MAP, MAP);
-    private final Label mapStatus = new Label();
+    private Label mapStatus;
     private final ComboBox<Integer> zoom = new ComboBox<>();
-    private final CheckBox inView = new CheckBox("Show on the ground in the 3D view");
-    private final Spinner<Integer> centreX = spinner(-30_000_000, 30_000_000, 0, 16);
-    private final Spinner<Integer> centreZ = spinner(-30_000_000, 30_000_000, 0, 16);
-    private final Spinner<Integer> width = spinner(1, TerrainState.MAX_SIZE, 256, 16);
-    private final Spinner<Integer> depth = spinner(1, TerrainState.MAX_SIZE, 256, 16);
-    private final Spinner<Integer> bottom = spinner(-64, 320, 40, 8);
+    private final CheckBox inView = new CheckBox("Show on the ground");
+    private final Spinner<Integer> centreX = spinner(-30_000_000, 30_000_000, 0, 16, "Centre X");
+    private final Spinner<Integer> centreZ = spinner(-30_000_000, 30_000_000, 0, 16, "Centre Z");
+    private final Spinner<Integer> width = spinner(1, TerrainState.MAX_SIZE, 256, 16, "Width (X)");
+    private final Spinner<Integer> depth = spinner(1, TerrainState.MAX_SIZE, 256, 16, "Depth (Z)");
+    private final Spinner<Integer> bottom = spinner(-64, 320, 40, 8, "Down to Y");
     private final CheckBox water = new CheckBox("Keep the sea");
-    private final ComboBox<Integer> voxel = new ComboBox<>();
-    private final CheckBox model = new CheckBox("As a small model (one block per voxel)");
-    private final Button bake = new Button("Bake to new layer");
-    private final Button cancel = new Button("Cancel");
+    private final Segmented<Integer> voxel = new Segmented<>(TerrainState.VOXELS, v -> v == 1 ? "1 : 1" : v + "");
+    private final CheckBox model = new CheckBox("As a small model");
+    private Button bake, cancel;
     private final ProgressBar progress = new ProgressBar(0);
-    private final Label status = new Label();
+    private Label status;
+    private Banner banner;
 
     TerrainPanel(TerrainSession session) {
         this.session = session;
@@ -88,7 +95,7 @@ final class TerrainPanel implements PluginPanel {
 
     @Override
     public String id() {
-        return "terrain";
+        return TerrainSession.PAGE;
     }
 
     @Override
@@ -104,42 +111,41 @@ final class TerrainPanel implements PluginPanel {
     @Override
     public Node create(PanelContext context) {
         PluginContext ctx = context.plugin();
-        session.revealPanel = context::reveal;
 
+        // Generator: preset and seed.
         presets.getItems().setAll(Presets.all());
-        presets.setMaxWidth(Double.MAX_VALUE);
         presets.setOnAction(e -> {
             Presets.Preset p = presets.getValue();
             if (!updating && p != null && !p.id().equals(session.state().presetId())) {
                 session.update("Terrain generator", s -> s.withPreset(p.id(), p.spec()));
             }
         });
-        Button open = small("Open…", "Open a generator file (.tgen.json)");
-        open.setOnAction(e -> openFile());
-        Button save = small("Save…", "Save this generator, with your slider settings, as a .tgen.json file");
-        save.setOnAction(e -> saveFile());
-        HBox.setHgrow(presets, Priority.ALWAYS);
-        HBox genRow = new HBox(4, presets, open, save);
-        genRow.setAlignment(Pos.CENTER_LEFT);
-        description.setWrapText(true);
-        description.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-size: 11px;");
-
-        seed.setPromptText("a number or any text");
-        seed.textProperty().addListener((o, a, b) -> {
-            if (!updating) session.update("Terrain seed", s -> s.withSeed(b));
+        seed.setPromptText("A number or any text");
+        // The seed changes the terrain when it is committed (Enter, or leaving the field): one undo step per seed.
+        seed.setOnAction(e -> commitSeed());
+        seed.focusedProperty().addListener((o, was, is) -> {
+            if (!is) commitSeed();
         });
-        Button dice = small("🎲", "A random seed");
-        dice.setOnAction(e -> session.update("Terrain seed", s -> s.withSeed(TerrainSession.randomSeed())));
         HBox.setHgrow(seed, Priority.ALWAYS);
-        HBox seedRow = new HBox(4, seed, dice);
+        seed.setMaxWidth(Double.MAX_VALUE);
+        seed.setMinWidth(0);
+        HBox seedRow = new HBox(Theme.XS, seed, Controls.iconButton(Icon.SHUFFLE, "New random seed",
+                () -> session.update("Terrain seed", s -> s.withSeed(TerrainSession.randomSeed()))));
         seedRow.setAlignment(Pos.CENTER_LEFT);
+        Form gen = new Form();
+        presetRow = gen.row("Preset", presets);
+        gen.row("Seed", seedRow).help("Same seed, same terrain.");
+        Section generator = new Section("Generator", gen).actions(
+                Controls.iconButton(Icon.FOLDER, "Open a generator file (.tgen.json)…", this::openFile),
+                Controls.iconButton(Icon.SAVE, "Save this generator, with your slider settings, as a .tgen.json file…", this::saveFile));
 
+        // Map.
         map.setFitWidth(MAP);
         map.setFitHeight(MAP);
         map.setSmooth(false);
         StackPane mapBox = new StackPane(map, overlay);
+        mapBox.setMinSize(MAP, MAP);
         mapBox.setMaxSize(MAP, MAP);
-        mapBox.setStyle("-fx-background-color: #1b1b1b;");
         Tooltip.install(mapBox, new Tooltip("Click to move the region there · wheel to zoom"));
         mapBox.setOnMouseClicked(e -> {
             int step = session.mapPixels() != null ? session.mapStep() : session.state().zoom();
@@ -153,18 +159,37 @@ final class TerrainPanel implements PluginPanel {
             if (i >= 0 && i < ZOOMS.size()) session.update("Terrain map zoom", s -> s.withZoom(ZOOMS.get(i)));
             e.consume();
         });
+        // Scaled to the section's width (square, at most 360 px); clicks still land in map pixels.
+        StackPane frame = new StackPane(new Group(mapBox));
+        frame.getStyleClass().add("bd-frame");
+        frame.setMinWidth(0);
+        frame.widthProperty().addListener((o, a, w) -> {
+            double s = Math.min(w.doubleValue() - 16, MAP_MAX) / MAP;
+            if (s > 0) {
+                mapBox.setScaleX(s);
+                mapBox.setScaleY(s);
+            }
+        });
+        mapStatus = Controls.caption("");
         zoom.getItems().setAll(ZOOMS);
         zoom.setConverter(converter(v -> "1 px = " + v + (v == 1 ? " block" : " blocks"), zoom));
         zoom.setOnAction(e -> {
             if (!updating && zoom.getValue() != null) session.update("Terrain map zoom", s -> s.withZoom(zoom.getValue()));
         });
-        mapStatus.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-size: 11px;");
-        HBox zoomRow = new HBox(8, zoom, mapStatus);
-        zoomRow.setAlignment(Pos.CENTER_LEFT);
+        inView.setTooltip(new Tooltip("Show the map on the ground in the 3D view, under the region"));
         inView.setOnAction(e -> {
             if (!updating) session.setShownInView(inView.isSelected());
         });
+        Form mapForm = new Form();
+        mapForm.row("Zoom", zoom);
+        mapForm.row(inView);
+        Section mapSection = new Section("Map", frame, mapStatus, mapForm);
 
+        // Shape: the generator's sliders.
+        noSliders = Controls.hint("This generator has no sliders.");
+        Section shapeSection = new Section("Shape", shape, noSliders);
+
+        // Region to bake.
         bind(centreX, "Move terrain region", (s, v) -> s.withCentre(v, s.centreZ()));
         bind(centreZ, "Move terrain region", (s, v) -> s.withCentre(s.centreX(), v));
         bind(width, "Resize terrain region", (s, v) -> s.withSize(v, s.sizeZ()));
@@ -173,61 +198,53 @@ final class TerrainPanel implements PluginPanel {
         water.setOnAction(e -> {
             if (!updating) session.update("Terrain sea", s -> s.withWater(water.isSelected()));
         });
-        Button fromSel = small("Use selection", "Bake the area of the selected blocks (or the //pos1 //pos2 region)");
-        fromSel.setOnAction(e -> useSelection(ctx));
-        GridPane region = new GridPane();
-        region.setHgap(8);
-        region.setVgap(6);
-        region.addRow(0, label("Centre X"), centreX, label("Z"), centreZ);
-        region.addRow(1, label("Width"), width, label("Depth"), depth);
-        region.addRow(2, label("Down to Y"), bottom, water);
-        GridPane.setColumnSpan(water, 2);
-        Label toolHint = new Label("Or drag it out with the Terrain region tool in the tool dock.");
-        toolHint.setWrapText(true);
-        toolHint.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-size: 11px;");
+        Form region = new Form();
+        region.row("Centre", pair(centreX, centreZ)).help("X and Z of the middle of the region.");
+        region.row("Size", pair(width, depth)).unit("blocks");
+        region.row("Down to Y", bottom);
+        region.row(water);
+        Button fromSel = Controls.button("Use selection", "Bake the area of the selected blocks (or the //pos1 //pos2 region)", () -> useSelection(ctx));
+        fromSel.getStyleClass().addAll("flat", "small");
+        Section regionSection = new Section("Region to bake", region,
+                Controls.hint("Or drag it out with the Terrain region tool in the tool dock.")).actions(fromSel);
 
-        voxel.getItems().setAll(TerrainState.VOXELS);
-        voxel.setConverter(converter(v -> v == 1 ? "Blocks (1 : 1)" : v + " blocks per voxel", voxel));
-        voxel.setOnAction(e -> {
-            if (!updating && voxel.getValue() != null) session.update("Terrain voxel size", s -> s.withVoxel(voxel.getValue(), s.expanded()));
+        // Voxels, folded away.
+        voxel.valueProperty().addListener((o, a, v) -> {
+            if (!updating && v != null) session.update("Terrain voxel size", s -> s.withVoxel(v, s.expanded()));
         });
         model.setOnAction(e -> {
             if (!updating) session.update("Terrain voxel bake", s -> s.withVoxel(s.voxel(), !model.isSelected()));
         });
+        Form voxels = new Form();
+        voxels.row("Voxel scale", voxel).help("Blocks per voxel: 1 : 1 bakes the terrain as it is.");
+        voxels.row(model).help("One block per voxel instead of filling each voxel with blocks.");
+        Section voxelSection = new Section("Voxels", voxels).collapsible(false);
 
-        bake.getStyleClass().add("accent");
-        bake.setMaxWidth(Double.MAX_VALUE);
-        bake.setOnAction(e -> {
-            String msg = session.bake();
-            if (!session.baking()) {
-                status.setTextFill(ERROR);
-                status.setText(msg);
-            }
-        });
-        cancel.setOnAction(e -> session.cancelBake());
-        progress.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(bake, Priority.ALWAYS);
-        HBox bakeRow = new HBox(6, bake, cancel);
+        // How the bake goes, at the bottom.
+        banner = new Banner();
+        status = Controls.caption("");
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 11px;");
+        progress.getStyleClass().add("bd-progress");
+        progress.setMaxWidth(Double.MAX_VALUE);
+        bake = Controls.primary("Bake to new layer", () -> {
+            String msg = session.bake();
+            if (!session.baking()) banner.show(Tone.DANGER, msg);
+        });
+        cancel = Controls.button("Cancel", "Stop baking", session::cancelBake);
 
-        VBox root = new VBox(10,
-                section("Generator", genRow, description),
-                section("Seed", seedRow),
-                section("Shape", controls),
-                section("Map", mapBox, zoomRow, inView),
-                section("Region to bake", region, fromSel, toolHint),
-                section("Voxels", voxel, model),
-                bakeRow, progress, status);
-        root.setPadding(new Insets(10));
+        PanelScaffold page = new PanelScaffold()
+                .add(generator, mapSection, shapeSection, regionSection, voxelSection)
+                .footer(banner, progress, status, new ActionBar(bake, cancel));
 
         session.listen(listener);
         context.onShown(this::refresh);
         refresh();
-        ScrollPane scroll = new ScrollPane(root);
-        scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
-        return scroll;
+        return page;
+    }
+
+    private void commitSeed() {
+        String text = seed.getText();
+        if (!updating && !text.equals(session.state().seed())) session.update("Terrain seed", s -> s.withSeed(text));
     }
 
     /** Fills every field from the session's state (after any change, including undo). */
@@ -239,8 +256,8 @@ final class TerrainPanel implements PluginPanel {
                     : presets.getItems().stream().filter(p -> p.id().equals(s.presetId())).findFirst().orElse(null);
             presets.setValue(match);
             presets.setPromptText(match == null ? s.spec().name() + " (from a file)" : "");
-            description.setText(s.spec().description());
-            if (!seed.getText().equals(s.seed())) seed.setText(s.seed());
+            presetRow.help(s.spec().description());
+            if (!seed.isFocused() && !seed.getText().equals(s.seed())) seed.setText(s.seed());
             if (!s.spec().equals(shownSpec)) buildControls(s.spec());
             zoom.setValue(s.zoom());
             set(centreX, s.centreX());
@@ -252,6 +269,7 @@ final class TerrainPanel implements PluginPanel {
             voxel.setValue(s.voxel());
             model.setSelected(!s.expanded());
             model.setDisable(s.voxel() == 1);
+            model.setTooltip(new Tooltip(s.voxel() == 1 ? "Pick a voxel scale above 1 : 1 first" : "One block per voxel: a small model of the terrain"));
             inView.setSelected(session.shownInView() || session.handle() == null);
         } finally {
             updating = false;
@@ -265,28 +283,38 @@ final class TerrainPanel implements PluginPanel {
             shownPixels = px;
         }
         int step = session.mapStep();
-        mapStatus.setText(session.error() != null ? "" : !session.mapUpToDate() ? "drawing…"
+        mapStatus.setText(session.error() != null ? "" : !session.mapUpToDate() ? "Drawing…"
                 : String.format("%,d × %,d blocks · %d ms", MAP * step, MAP * step, session.mapMillis()));
         drawRegion();
 
         boolean baking = session.baking();
         bake.setDisable(baking || session.error() != null);
-        show(cancel, baking);
-        show(progress, baking);
+        Controls.show(cancel, baking);
+        Controls.show(progress, baking);
         progress.setProgress(session.bakeProgress());
         if (session.error() != null) {
-            status.setTextFill(ERROR);
-            status.setText("✖ " + session.error());
+            banner.show(Tone.DANGER, session.error());
+            status.setText("");
+        } else if (session.bakeFailed()) {
+            banner.show(Tone.DANGER, session.bakeMessage());
+            status.setText("");
         } else {
-            status.setTextFill(session.bakeFailed() ? ERROR : MUTED);
+            if (Tone.DANGER.equals(bannerTone)) banner.hide();
             status.setText(session.bakeMessage());
         }
+        bannerTone = banner.isVisible() ? Tone.DANGER : null;
+        Controls.show(status, !status.getText().isEmpty());
     }
+
+    /** What the banner shows (only errors), so it goes away once they are fixed. */
+    private Tone bannerTone;
 
     /** One slider per control of the generator: {"label", "node", "param", "min", "max", "log", "invert"}. */
     private void buildControls(GeneratorSpec spec) {
         shownSpec = spec;
-        controls.getChildren().clear();
+        // A new form each time: rows can't be taken out of a Form.
+        Form fresh = new Form();
+        int count = 0;
         for (Map<String, Object> c : spec.controls()) {
             String node = String.valueOf(c.get("node")), param = String.valueOf(c.get("param"));
             GeneratorSpec.Node n = spec.nodes().get(node);
@@ -295,29 +323,29 @@ final class TerrainPanel implements PluginPanel {
             boolean log = Boolean.TRUE.equals(c.get("log")) && min > 0, invert = Boolean.TRUE.equals(c.get("invert"));
             String label = String.valueOf(c.getOrDefault("label", param));
             Slider slider = new Slider(0, 1, Sliders.toSlider(n.number(param, min), min, max, log, invert));
-            Label value = new Label(format(n.number(param, min)));
-            value.setMinWidth(54);
-            value.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-size: 11px;");
+            slider.setAccessibleText(label);
+            Label value = Controls.caption(ShapeFormat.value(param, n.number(param, min), max));
+            value.setMinWidth(92);
+            value.setPrefWidth(92);
+            value.setAlignment(Pos.CENTER_RIGHT);
             slider.valueProperty().addListener((o, a, b) -> {
                 if (updating) return;
                 double v = Sliders.fromSlider(b.doubleValue(), min, max, log, invert);
-                value.setText(format(v));
+                value.setText(ShapeFormat.value(param, v, max));
                 session.update("Terrain: " + label, s -> s.withSpec(s.spec().withParam(node, param, v)));
                 // The sliders stay as they are while dragging; only a change from elsewhere rebuilds them.
                 shownSpec = session.state().spec();
             });
             HBox.setHgrow(slider, Priority.ALWAYS);
-            Label name = new Label(label);
-            name.setMinWidth(104);
-            HBox row = new HBox(6, name, slider, value);
+            slider.setMaxWidth(Double.MAX_VALUE);
+            slider.setMinWidth(0);
+            HBox row = new HBox(Theme.SM, slider, value);
             row.setAlignment(Pos.CENTER_LEFT);
-            controls.getChildren().add(row);
+            fresh.row(label, row);
+            count++;
         }
-        if (controls.getChildren().isEmpty()) {
-            Label none = new Label("This generator has no sliders.");
-            none.setStyle("-fx-text-fill: -color-fg-muted;");
-            controls.getChildren().add(none);
-        }
+        shape.getChildren().setAll(fresh);
+        Controls.show(noSliders, count == 0);
     }
 
     /** The bake region on the map, where it is relative to what the map shows. */
@@ -352,14 +380,13 @@ final class TerrainPanel implements PluginPanel {
         FileChooser fc = new FileChooser();
         fc.setTitle("Open generator");
         fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Terrain generator", "*.tgen.json", "*.json"));
-        File f = fc.showOpenDialog(presets.getScene() == null ? null : presets.getScene().getWindow());
+        File f = fc.showOpenDialog(session.ui().owner());
         if (f == null) return;
         try {
             GeneratorSpec spec = GeneratorSpec.read(Files.readString(f.toPath()));
             session.update("Open terrain generator", s -> s.withPreset(null, spec));
         } catch (IOException | IllegalArgumentException e) {
-            status.setTextFill(ERROR);
-            status.setText("✖ " + f.getName() + ": " + e.getMessage());
+            banner.show(Tone.DANGER, f.getName() + ": " + e.getMessage());
         }
     }
 
@@ -369,15 +396,13 @@ final class TerrainPanel implements PluginPanel {
         fc.setTitle("Save generator");
         fc.setInitialFileName(spec.name().replaceAll("[^A-Za-z0-9 _-]", "").strip() + ".tgen.json");
         fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Terrain generator", "*.tgen.json"));
-        File f = fc.showSaveDialog(presets.getScene() == null ? null : presets.getScene().getWindow());
+        File f = fc.showSaveDialog(session.ui().owner());
         if (f == null) return;
         try {
             Files.writeString(f.toPath(), spec.toJson(), StandardCharsets.UTF_8);
-            status.setTextFill(MUTED);
-            status.setText("Saved " + f.getName());
+            session.ctxToast("Saved " + f.getName());
         } catch (IOException e) {
-            status.setTextFill(ERROR);
-            status.setText("✖ " + e.getMessage());
+            banner.show(Tone.DANGER, "Couldn't save: " + e.getMessage());
         }
     }
 
@@ -393,20 +418,29 @@ final class TerrainPanel implements PluginPanel {
         });
     }
 
-    private static Spinner<Integer> spinner(int min, int max, int value, int step) {
+    private static Spinner<Integer> spinner(int min, int max, int value, int step, String name) {
         Spinner<Integer> s = new Spinner<>(min, max, value, step);
         s.setEditable(true);
-        s.setPrefWidth(96);
+        s.setPrefWidth(88);
+        s.setMinWidth(0);
+        s.setAccessibleText(name);
+        s.setTooltip(new Tooltip(name));
         return s;
+    }
+
+    /** Two spinners side by side that share the row's width. */
+    private static HBox pair(Spinner<Integer> a, Spinner<Integer> b) {
+        HBox.setHgrow(a, Priority.ALWAYS);
+        HBox.setHgrow(b, Priority.ALWAYS);
+        a.setMaxWidth(Double.MAX_VALUE);
+        b.setMaxWidth(Double.MAX_VALUE);
+        HBox h = new HBox(Theme.XS, a, b);
+        h.setAlignment(Pos.CENTER_LEFT);
+        return h;
     }
 
     private static void set(Spinner<Integer> s, int v) {
         if (s.getValue() == null || s.getValue() != v) s.getValueFactory().setValue(v);
-    }
-
-    private static void show(Node n, boolean shown) {
-        n.setVisible(shown);
-        n.setManaged(shown);
     }
 
     private static <T> StringConverter<T> converter(Function<T, String> text, ComboBox<T> box) {
@@ -423,33 +457,8 @@ final class TerrainPanel implements PluginPanel {
         };
     }
 
-    private static String format(double v) {
-        if (v != 0 && Math.abs(v) < 0.1) return String.format(Locale.ROOT, "%.5f", v);
-        return String.format(Locale.ROOT, v == Math.rint(v) ? "%.0f" : "%.2f", v);
-    }
-
     private static double num(Map<String, Object> m, String key, double fallback) {
         return m.get(key) instanceof Number n ? n.doubleValue() : fallback;
-    }
-
-    private static Label label(String text) {
-        Label l = new Label(text);
-        l.setStyle("-fx-text-fill: -color-fg-muted;");
-        return l;
-    }
-
-    private static Button small(String text, String tip) {
-        Button b = new Button(text);
-        b.setTooltip(new Tooltip(tip));
-        return b;
-    }
-
-    private static Node section(String title, Node... content) {
-        Label t = new Label(title.toUpperCase(Locale.ROOT));
-        t.setStyle("-fx-font-size: 10.5px; -fx-font-weight: bold; -fx-text-fill: -color-fg-muted;");
-        VBox v = new VBox(6, t);
-        v.getChildren().addAll(content);
-        return v;
     }
 
     @Override

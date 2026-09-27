@@ -70,9 +70,8 @@ final class TerrainSession {
     private String bakeMessage = "";
     private boolean bakeFailed;
 
-    /** Set by the panel, so the preview object's menu can bring it forward. */
-    Runnable revealPanel = () -> {
-    };
+    /** The Terrain page's id. */
+    static final String PAGE = "terrain";
 
     TerrainSession(PluginContext ctx) {
         this.ctx = ctx;
@@ -156,7 +155,30 @@ final class TerrainSession {
         }
     }
 
+    /** The app's dialogs, look and main window. */
+    io.blockdesigner.plugin.ui.PluginUi ui() {
+        return ctx.ui();
+    }
+
+    /** Brings the Terrain page forward (the preview object's menu). */
+    void showPanel() {
+        ctx.showPanel(PAGE);
+    }
+
+    /** The dot on the Terrain page's button: baking, or what went wrong; none otherwise. */
+    private void updatePanelStatus() {
+        if (baking) ctx.setPanelStatus(PAGE, io.blockdesigner.plugin.ui.Tone.ACCENT, "Baking… " + Math.round(bakeProgress * 100) + "%");
+        else if (bakeFailed) ctx.setPanelStatus(PAGE, io.blockdesigner.plugin.ui.Tone.DANGER, bakeMessage);
+        else if (error != null) ctx.setPanelStatus(PAGE, io.blockdesigner.plugin.ui.Tone.DANGER, error);
+        else ctx.setPanelStatus(PAGE, null, null);
+    }
+
     private void fire() {
+        try {
+            updatePanelStatus();
+        } catch (RuntimeException e) {
+            ctx.log("Terrain page status failed: " + e);
+        }
         for (Runnable r : List.copyOf(listeners)) {
             try {
                 r.run();

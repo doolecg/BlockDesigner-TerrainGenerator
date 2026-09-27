@@ -14,13 +14,13 @@
   <a href="https://github.com/doolecg/BlockDesigner-TerrainGenerator/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/doolecg/BlockDesigner-TerrainGenerator/total"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/doolecg/BlockDesigner-TerrainGenerator"></a>
   <img alt="Platform: Windows" src="https://img.shields.io/badge/platform-Windows-0078D6">
-  <a href="https://github.com/doolecg/BlockDesigner"><img alt="BlockDesigner plugin API 3" src="https://img.shields.io/badge/BlockDesigner-plugin%20API%203-46C46E"></a>
+  <a href="https://github.com/doolecg/BlockDesigner"><img alt="BlockDesigner plugin API 6" src="https://img.shields.io/badge/BlockDesigner-plugin%20API%206-46C46E"></a>
 </p>
 
 ---
 
 Terrain Generator is a plugin for [BlockDesigner](https://github.com/doolecg/BlockDesigner), the Windows editor for Minecraft builds. It is released
-on its own, separately from the app. It needs **BlockDesigner 0.4.17 or later** (plugin API 3).
+on its own, separately from the app. It needs **BlockDesigner 0.4.24 or later** (plugin API 6).
 
 **Contents:** [Download](#download-and-install) · [Features](#features) · [Building from source](#building-from-source) · [Project layout](#project-layout)
 
@@ -39,24 +39,31 @@ access as BlockDesigner itself, so only install ones you trust.
 
 ### Making terrain
 
-1. **Pick a generator** (Vanilla-like, Islands, Mesas or Rolling hills), or **Open…** a `.tgen.json` file.
-2. **Type a seed**, a number or any text (text is hashed the way Minecraft hashes it), or roll one with the dice.
-3. **Tune the sliders** under Shape. The map redraws as you go, in the panel and lying on the ground in the 3D view,
-   with the bake region drawn as a box and its chunks marked.
+1. **Pick a generator** (Vanilla-like, Islands, Mesas or Rolling hills), or open a `.tgen.json` file with the folder
+   button.
+2. **Type a seed**, a number or any text (text is hashed the way Minecraft hashes it), and press Enter, or roll one with
+   the shuffle button.
+3. **Tune the sliders** under Shape. Sizes read in blocks ("≈ 1,490 blocks" across), heights in blocks. The map
+   redraws as you go, on the page and lying on the ground in the 3D view, with the bake region drawn as a box and its
+   chunks marked.
 4. **Set the region:** click the map to centre it there (the wheel zooms), type its centre and size, **Use
    selection**, or drag it out in the view with the **Terrain region** tool (a click moves it; the wheel while dragging
    sets how deep it goes). **Down to Y** sets how deep to bake: the world goes down to −64, and most of that is plain
    stone.
-5. **Voxels** (optional): bake at 2, 4 or 8 blocks per voxel, either expanded to full size (blocky terrain) or as a
-   small model with one block per voxel.
-6. **Bake to new layer.** The region becomes a new layer of normal blocks in one undo step. Build on it, edit it or
-   export it like anything else.
+5. **Voxels** (optional, folded away): bake at 2, 4 or 8 blocks per voxel, either expanded to full size (blocky
+   terrain) or as a small model with one block per voxel.
+6. **Bake to new layer**, at the bottom of the page. The region becomes a new layer of normal blocks in one undo step.
+   While it bakes, the page shows its progress (and a dot on the page's button); errors show there too. Build on it,
+   edit it or export it like anything else.
+
+The **Terrain region** tool can be given a key in Settings › Keybinds.
 
 ### Saved with the project
 
 Everything you set is kept in the project as the **Terrain preview** (in the Layers panel, badge TERRAIN): it is saved
 with the project, every change can be undone, and hiding it hides the map and the region box in the view. Right-click
-it to bake or roll a new seed. **Save…** writes the generator with your slider settings as a `.tgen.json` file.
+it to bake, roll a new seed or open the Terrain page. The save button writes the generator with your slider settings as a
+`.tgen.json` file.
 
 ### Commands
 
@@ -93,7 +100,7 @@ You need Windows and a JDK 26 (Temurin 26 is what BlockDesigner uses; set `org.g
 ./gradlew jar      # build/libs/terrain-generator-<version>.jar
 ```
 
-The plugin compiles against the BlockDesigner plugin API jars in [`libs/`](libs) (from BlockDesigner 0.4.23). The app
+The plugin compiles against the BlockDesigner plugin API jars in [`libs/`](libs) (from BlockDesigner 0.4.24). The app
 provides them, and JavaFX, at runtime, so they are never bundled into the plugin. To target a newer API, replace them
 with the jars from a newer BlockDesigner build (`./gradlew :plugin-api:jar :core:jar` in the
 [BlockDesigner repository](https://github.com/doolecg/BlockDesigner)) and update the file names in `plugin/build.gradle.kts`.
@@ -118,7 +125,7 @@ Runs every test, including the determinism tests a second time with `-Xint`, so 
 | Path | What it does |
 |---|---|
 | `runtime/` | The generator: noises, the node graph and its JSON format, the compiler, the chunk filler, surface rules, scatter and the built-in presets. Plain Java 17 with no dependencies. |
-| `plugin/` | The BlockDesigner plugin: the Terrain panel, the Terrain preview object, the region tool, the `/terrain` command, the map and baking. The runtime is built into its jar. |
+| `plugin/` | The BlockDesigner plugin: the Terrain page, the Terrain preview object, the region tool, the `/terrain` command, the map and baking. The runtime is built into its jar. |
 | `libs/` | The BlockDesigner plugin API jars it compiles against |
 | `docs/plan.md` | The design plan and its phases |
 

@@ -1,5 +1,10 @@
 # Terrain Generator: plan
 
+**0.2.0 (UI overhaul, API 6, needs BlockDesigner 0.4.24):** the Terrain page is built with BlockDesigner's UI kit
+(Generator, Map scaled to the page, Shape with sizes shown in blocks via `ShapeFormat`, Region to bake, a folded Voxels
+section, and Bake with progress and errors at the bottom); the seed commits on Enter or focus loss (one undo step);
+the page's status dot shows baking and failures; the preview object's menu opens the page with `ctx.showPanel`.
+
 Status (2026-09-26): **Phases 0, 1 and 2 done.** This repository (`BlockDesigner-TerrainGenerator`) holds the
 plugin, released on its own; plugin code never goes into BlockDesigner's main repository. What exists and what changed
 from the plan below:

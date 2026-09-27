@@ -1,3 +1,25 @@
+# Terrain Generator 0.2.0
+
+The Terrain page is easier to read and fits a narrow panel, and the sliders show sizes in blocks.
+
+**Needs BlockDesigner 0.4.24 or later** (plugin API 6). Older BlockDesigners keep 0.1.3 until BlockDesigner itself is updated.
+
+## New
+- **Sizes in blocks:** the size sliders read "≈ 1,490 blocks" instead of a noise frequency, and heights read in blocks.
+- **A status dot** on the Terrain page's button while it bakes, and when something went wrong.
+- **The Terrain region tool** can be given a key in Settings › Keybinds.
+
+## Changed
+- **Page layout:** Generator, Map, Shape, Region to bake and Voxels (folded away), with **Bake to new layer**, its progress and any error at the bottom. Open and save a `.tgen.json` with the buttons next to Generator; the shuffle button rolls a seed.
+- **The map fits the page** (up to 360 pixels wide) instead of a fixed size.
+- **The region's fields** fit a narrow panel: centre and size in pairs.
+- **Open the Terrain panel** on the Terrain preview's right-click menu opens the page with BlockDesigner's own navigation.
+
+## Fixed
+- **Typing a seed** changes the terrain when you press Enter or leave the field, as one undo step, instead of one step (and a redraw) per letter.
+
+---
+
 # Terrain Generator 0.1.3
 
 Kept up to date with BlockDesigner 0.4.23: built and tested against its plugin API. Nothing changes in how it works.

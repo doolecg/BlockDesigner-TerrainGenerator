@@ -6,5 +6,5 @@
   "description": "Generates terrain from noise: pick a generator and seed, tune it while a map redraws (in the panel and on the ground in the 3D view), set the region with the Terrain region tool and bake it into a new layer. Settings are saved with the project.",
   "updates": "https://github.com/doolecg/BlockDesigner-TerrainGenerator",
   "main": "io.blockdesigner.terragen.plugin.TerrainGeneratorPlugin",
-  "api": 3
+  "api": 6
 }

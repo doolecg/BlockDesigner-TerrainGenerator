@@ -1,6 +1,6 @@
 // Terrain Generator, a BlockDesigner plugin released on its own. Build it with:  ./gradlew jar
 // then install build/libs/terrain-generator-<version>.jar with Plugins > Manage plugins > Install.
-version = "0.1.3"
+version = "0.2.0"
 
 subprojects {
     group = "io.blockdesigner.plugins"

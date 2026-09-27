@@ -117,7 +117,7 @@ final class TerrainPreview implements SceneObject {
         MenuItem seed = new MenuItem("New random seed");
         seed.setOnAction(e -> session.update("New terrain seed", s -> s.withSeed(TerrainSession.randomSeed())));
         MenuItem panel = new MenuItem("Open the Terrain panel");
-        panel.setOnAction(e -> session.revealPanel.run());
+        panel.setOnAction(e -> session.showPanel());
         return List.of(bake, seed, panel);
     }
 

@@ -25,8 +25,8 @@ javafx {
     configuration = "compileOnly"
 }
 
-// The BlockDesigner API this plugin targets (from BlockDesigner 0.4.18).
-val blockDesigner = rootProject.files("libs/blockdesigner-plugin-api-0.4.18.jar", "libs/blockdesigner-core-0.4.18.jar")
+// The BlockDesigner API this plugin targets (from BlockDesigner 0.4.22).
+val blockDesigner = rootProject.files("libs/blockdesigner-plugin-api-0.4.22.jar", "libs/blockdesigner-core-0.4.22.jar")
 
 dependencies {
     implementation(project(":runtime"))

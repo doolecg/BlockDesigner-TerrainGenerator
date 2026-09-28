@@ -100,7 +100,7 @@ You need Windows and a JDK 26 (Temurin 26 is what BlockDesigner uses; set `org.g
 ./gradlew jar      # build/libs/terrain-generator-<version>.jar
 ```
 
-The plugin compiles against the BlockDesigner plugin API jars in [`libs/`](libs) (from BlockDesigner 0.4.24). The app
+The plugin compiles against the BlockDesigner plugin API jars in [`libs/`](libs) (from BlockDesigner 0.4.27). The app
 provides them, and JavaFX, at runtime, so they are never bundled into the plugin. To target a newer API, replace them
 with the jars from a newer BlockDesigner build (`./gradlew :plugin-api:jar :core:jar` in the
 [BlockDesigner repository](https://github.com/doolecg/BlockDesigner)) and update the file names in `plugin/build.gradle.kts`.

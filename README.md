@@ -132,3 +132,11 @@ Runs every test, including the determinism tests a second time with `-Xint`, so 
 ## License
 
 [MIT](LICENSE)
+
+## Disclaimer
+
+This software is provided "as is", without warranty of any kind, as set out in the [LICENSE](LICENSE). To the extent permitted by law, the authors are not liable for any loss or damage from using it, including lost data, lost work or damage to files or projects. Nothing here limits liability that cannot be limited by law, such as for death or personal injury caused by negligence.
+
+Back up your work before using it. You use it at your own risk.
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
